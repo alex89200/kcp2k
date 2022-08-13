@@ -11,6 +11,7 @@ namespace kcp2k
         //            silently drop excess data.
         //            => we need the MTU to fit channel + message!
         readonly byte[] rawReceiveBuffer = new byte[Kcp.MTU_DEF];
+        protected bool enableBroadcast;
 
         // helper function to resolve host to IPAddress
         public static bool ResolveHostname(string hostname, out IPAddress[] addresses)
@@ -67,7 +68,8 @@ namespace kcp2k
                             uint receiveWindowSize = Kcp.WND_RCV,
                             int timeout = DEFAULT_TIMEOUT,
                             uint maxRetransmits = Kcp.DEADLINK,
-                            bool maximizeSendReceiveBuffersToOSLimit = false)
+                            bool maximizeSendReceiveBuffersToOSLimit = false,
+                            bool enableBroadcast = false)
         {
             Log.Info($"KcpClient: connect to {host}:{port}");
 
@@ -80,11 +82,24 @@ namespace kcp2k
                 // create socket
                 socket = new Socket(remoteEndPoint.AddressFamily, SocketType.Dgram, ProtocolType.Udp);
 
+                // enable broadcast if needed
+                this.enableBroadcast = enableBroadcast;
+                socket.EnableBroadcast = enableBroadcast;
+
                 // configure buffer sizes
                 ConfigureSocketBufferSizes(maximizeSendReceiveBuffersToOSLimit);
 
+
                 // connect
-                socket.Connect(remoteEndPoint);
+                // if we want to be able to receive answers to broadcast requests,
+                // we must use socket.SendTo instead of socket.Connect. Otherwise
+                // broadcast address will be bound to the socket and it will be
+                // trying to receive data from it instead of the real address of
+                // the client == nothing will be received.
+                if (!enableBroadcast)
+                {
+                    socket.Connect(remoteEndPoint);
+                }
 
                 // set up kcp
                 SetupKcp(noDelay, interval, fastResend, congestionWindow, sendWindowSize, receiveWindowSize, timeout, maxRetransmits);
@@ -150,7 +165,18 @@ namespace kcp2k
 
         protected override void RawSend(byte[] data, int length)
         {
-            socket.Send(data, length, SocketFlags.None);
+            // if broadcast enabled, we use connectionless mode and must send
+            // data using the SendTo method. Not that using this method causes
+            // allocations (remoteEndPoint is re-serialized each time). Thus it
+            // is recommended to use broadcast-enabled client ONLY for discovery.
+            if (enableBroadcast)
+            {
+                socket.SendTo(data, length, SocketFlags.None, remoteEndPoint);
+            }
+            else
+            {
+                socket.Send(data, length, SocketFlags.None);
+            }
         }
     }
 }

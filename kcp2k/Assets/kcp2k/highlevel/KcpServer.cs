@@ -26,6 +26,9 @@ namespace kcp2k
         // heavy load. using the OS max size can make a difference already.
         public bool MaximizeSendReceiveBuffersToOSLimit;
 
+        // whether to enable broadcasting
+        public bool EnableBroadcast;
+
         // kcp configuration
         // NoDelay is recommended to reduce latency. This also scales better
         // without buffers getting full.
@@ -80,7 +83,8 @@ namespace kcp2k
                          uint ReceiveWindowSize = Kcp.WND_RCV,
                          int Timeout = KcpConnection.DEFAULT_TIMEOUT,
                          uint MaxRetransmits = Kcp.DEADLINK,
-                         bool MaximizeSendReceiveBuffersToOSLimit = false)
+                         bool MaximizeSendReceiveBuffersToOSLimit = false,
+                         bool EnableBroadcast = false)
         {
             this.OnConnected = OnConnected;
             this.OnData = OnData;
@@ -96,6 +100,7 @@ namespace kcp2k
             this.Timeout = Timeout;
             this.MaxRetransmits = MaxRetransmits;
             this.MaximizeSendReceiveBuffersToOSLimit = MaximizeSendReceiveBuffersToOSLimit;
+            this.EnableBroadcast = EnableBroadcast;
 
             // create newClientEP either IPv4 or IPv6
             newClientEP = DualMode
@@ -138,12 +143,14 @@ namespace kcp2k
                 // IPv6 socket with DualMode
                 socket = new Socket(AddressFamily.InterNetworkV6, SocketType.Dgram, ProtocolType.Udp);
                 socket.DualMode = true;
+                socket.EnableBroadcast = EnableBroadcast;
                 socket.Bind(new IPEndPoint(IPAddress.IPv6Any, port));
             }
             else
             {
                 // IPv4 socket
                 socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                socket.EnableBroadcast = EnableBroadcast;
                 socket.Bind(new IPEndPoint(IPAddress.Any, port));
             }
 

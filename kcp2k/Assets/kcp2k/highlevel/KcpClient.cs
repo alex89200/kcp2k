@@ -46,7 +46,8 @@ namespace kcp2k
                             uint receiveWindowSize = Kcp.WND_RCV,
                             int timeout = KcpConnection.DEFAULT_TIMEOUT,
                             uint maxRetransmits = Kcp.DEADLINK,
-                            bool maximizeSendReceiveBuffersToOSLimit = false)
+                            bool maximizeSendReceiveBuffersToOSLimit = false,
+                            bool enableBroadcast = false)
         {
             if (connected)
             {
@@ -92,7 +93,8 @@ namespace kcp2k
                                receiveWindowSize,
                                timeout,
                                maxRetransmits,
-                               maximizeSendReceiveBuffersToOSLimit);
+                               maximizeSendReceiveBuffersToOSLimit,
+                               enableBroadcast);
         }
 
         public void Send(ArraySegment<byte> segment, KcpChannel channel)
